@@ -128,8 +128,11 @@ def generateInitialPopulation(population_size):
 def print_population(population):
     groups, fitness = population
     print("Fitness:", fitness)
-    result = list(map(lambda x: list(map(lambda y: y + 1, x)), groups))
-    print("Groups:", result)
+    for idx, group in enumerate(groups):
+        print("\nGroup", idx + 1)
+        for participant in group:
+            age, xp, spec, remote, social = ranking[participant]
+            print("Age:", age, "Spec:", spec, "Remote:", remote, "Social:", social, "Xp:", xp)
 
 
 def print_ranking(ranking):
