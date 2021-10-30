@@ -15,8 +15,9 @@ To run with the exact arguments from the associated paper (Population Size = 100
 ```
 ./genetic.py -p 4000 -g 30 -el 3 -rest 3 -mchance 0.5 -mswaps 1 -n 36 -s 6
 ```
-You will need a file called `rankings.csv` with preference values starting at the first row and first column. The value in row `i` will refer to the rating given to the `i`th participant. The columns are:
+You will need a file called `rankings.csv` with preference values starting at the first row and first column. The value in row `i` will refer to the rating given to the `i`th participant.
 
+Columns:
 - years old
 - years of experience
 - specialty (1-front-end, 2-back-end, 3-design)
