@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 '''
-Genetic algorithm to select an optimal grouping of individuals based on their teammate preferences.
+Genetic algorithm to select an optimal grouping of individuals.
 '''
 import sys
 if sys.version_info < (3, 0):
@@ -17,9 +17,10 @@ import sys
 import time
 import argparse
 import os
+import csv
+import time
 
 # Parse arguments to fill constants
-# This is to enable SPMD processing in the future
 # Changing any of the long argument strings will break the argument parsing system, so don't
 parser = argparse.ArgumentParser(description='Run a genetic algorithm to group participants into groups')
 parser.add_argument('-n', '--numparticipants', type=int, help="Number of participants for grouping exercise")
@@ -28,8 +29,6 @@ parser.add_argument('-p', '--populationsize', type=int, help="Size of the popula
 parser.add_argument('-g', '--generations', type=int, help="Number of generations")
 parser.add_argument('-el', '--numelitism', type=int, help="Number of individuals in population that are from the previous elite")
 parser.add_argument('-rest', '--numrest', type=int, help="Number of randomly chosen non-elite parents")
-parser.add_argument('-pos', '--positiveweight',  type=int, help="(Testing) Weight assigned to a link between two willing group members")
-parser.add_argument('-neg', '--negativeweight', type=int, help="(Testing) Weight assigned to a link between two unwilling group members")
 parser.add_argument('-mchance', '--mutationchance', type=float, help="Chance of mutation for the next generation")
 parser.add_argument('-mswaps', '--mutationswaps', type=int, help="Number of group member swaps to do during each mutation (mutation aggressiveness)")
 parser.add_argument('-hof', '--numhalloffame', type=int, help="Number of individuals preserved in the hall of fame")
@@ -56,10 +55,8 @@ NUM_GENERATIONS = args_dict['generations'] or 100
 NUM_ELITISM = args_dict['numelitism'] or int(POPULATION_SIZE / 4) # Keep these number of best-performing individuals for the rest of the algo
 NUM_REST_PARENTS = args_dict['numrest'] or int(POPULATION_SIZE / 4) # The rest of the "non-elite" parents
 NUM_CHILDREN = POPULATION_SIZE - NUM_ELITISM - NUM_REST_PARENTS
-POSITIVE_WEIGHT = args_dict['positiveweight'] or 100
-NEGATIVE_WEIGHT = args_dict['negativeweight'] or -1000
 MUTATION_CHANCE = args_dict['mutationchance'] or 0.1
-MUTATION_NUM_SWAPS = args_dict['mutationswaps'] or 1#int(NUM_PARTICIPANTS / 5)
+MUTATION_NUM_SWAPS = args_dict['mutationswaps'] or 1
 HALL_OF_FAME_SIZE = args_dict['numhalloffame'] or 5
 
 # Printing params
@@ -74,7 +71,6 @@ xs = []
 ys = []
 hall_of_fame = []
 
-import csv
 file_location = args_dict["rankings"] or "rankings.csv"
 with open(file_location) as csvfile:
     ranking = list(csv.reader(csvfile, delimiter=','))
@@ -84,10 +80,6 @@ with open(file_location) as csvfile:
             participant.append(int(cell))
         ranking[rowidx] = participant
 
-import time
-# time.sleep(10)
-
-# Seed random?
 def is_valid_grouping(grouping):
     # number of groups must be correct
     groups_cor = len(grouping) == NUM_GROUPS
@@ -95,17 +87,12 @@ def is_valid_grouping(grouping):
     num_groupmem_cor = len(list(filter(lambda g: len(g) != PARTICIPANTS_PER_GROUP, grouping))) == 0
     # All individuals should be included
     all_included = set(list(itertools.chain.from_iterable(grouping))) == set(range(NUM_PARTICIPANTS))
-
     return (groups_cor and num_groupmem_cor and all_included)
 
-
-# Gets the list of participant numbers and randomizes splitting them up
-# into groups
 def generateRandomGrouping():
     participants = [i for i in range(NUM_PARTICIPANTS)]
     random.shuffle(participants)
     idx = 0
-
     grouping = []
     for g in range(NUM_GROUPS):
         group = []
@@ -115,37 +102,24 @@ def generateRandomGrouping():
         grouping.append(group)
     return grouping
 
-# Generate an initial list of of groupings by randomly creating them
-
-
 def generateInitialPopulation(population_size):
     population = []
     for i in range(population_size):
         population.append(generateRandomGrouping())
     return population
 
-
 def print_population(population):
+    for p in population:
+        print(p)
+
+def print_best_match(population):
     groups, fitness = population
     print("Fitness:", fitness)
     for idx, group in enumerate(groups):
         print("\nGroup", idx + 1)
         for participant in group:
             age, xp, spec, remote, social = ranking[participant]
-            print("Age:", age, "Spec:", spec, "Remote:", remote, "Social:", social, "Xp:", xp)
-
-
-def print_ranking(ranking):
-    rank_source = 0
-    rank_target = 0
-    for row in ranking:
-        rank_target = 0
-        for col in row:
-            print(str(rank_source) + " -> " +
-                  str(rank_target) + ": " + str(col))
-            rank_target += 1
-        print("------------")
-        rank_source += 1
+            print("Idx:", f'{(participant + 1):02}', "Age:", age, "Xp:", f'{xp:02}', "Spec:", spec, "Remote:", remote, "Social:", social)
 
 def social_fitness(p_social, op_social):
     social_diff = abs(p_social - op_social)
@@ -154,24 +128,20 @@ def social_fitness(p_social, op_social):
     return -1 if has_large_diff else 3 if social_sum == 100 else social_sum / 100
 
 # Given a single group in a grouping, evaluate that group's fitness
-# TODO: Don't use sum only! Use sum only if relationship is not asymmmetricalgg
 def group_fitness(group):
     group_fitness_score = 0
-    # All-pairs sum of rankings
     for p_idx, participant in enumerate(group):
         p_age, p_xp, p_spec, p_remote, p_social = ranking[participant]
-        p_age_round = p_age // 10
+        p_age_range = p_age // 10
         for op_idx, other_participant in enumerate(group):
             if(p_idx == op_idx): continue
             op_age, op_xp, op_spec, op_remote, op_social = ranking[other_participant]
-            op_age_round = op_age // 10
-
-            group_fitness_score += 1 if p_age_round == op_age_round else 2
+            op_age_range = op_age // 10
+            group_fitness_score += 1 if p_age_range == op_age_range else 2
             group_fitness_score += abs(p_xp - op_xp)
             group_fitness_score += 1 if p_spec == op_spec else 2
             group_fitness_score += 1 if p_remote == op_remote else -1
             group_fitness_score += social_fitness(p_social, op_social)
-
     return group_fitness_score
 
 # Given a single grouping, evaluate its overall fitness
@@ -185,30 +155,20 @@ def fitness(grouping):
 # Modifies the population_with_fitness param, cannot be used after
 def select_parents_to_breed(sorted_population_with_fitness):
     selected_parents = []
-    # Sort the incoming population by their fitness with the best individuals being at the end
-    # population_with_fitness.sort(key=lambda x: x[1])
-
     # Select the most elite individuals to breed and carry on to next gen as well
     for i in range(NUM_ELITISM):
         selected_parents.append(sorted_population_with_fitness.pop())
-
     # Select the rest of the mating pool by random chance
-    # TODO: This needs to be a weighted sample!
     selected_parents.extend(random.sample(sorted_population_with_fitness, NUM_REST_PARENTS))
-    #print("Selected parents")
-    #print_population(selected_parents)
     # Don't return the weights
     return list(map(lambda x: x[0], selected_parents))
 
-# Potentially the most important function
-# Given two sets of groupings - we need to produce a new valid grouping
+# Given two sets of groupings, we need to produce a new valid grouping
 def breed_two_parents(p1, p2):
     child = []
     # Custom copy and append (deepcopy profiling says it takes up the majority of runtime)
     group_pool = [list(x) for x in p1] + [list(x) for x in p2] 
     child = random.sample(group_pool, NUM_GROUPS)
-    #print("Initial child of " + str(p1) + " and " + str(p2) + ": \n" + str(child))
-
     # We need to "correct" the child so that it can be a valid group
     # This also introduces a form of mutation
     # We first need to find out where the repeats are in every group, and which participants are left out
@@ -221,22 +181,15 @@ def breed_two_parents(p1, p2):
             else:
                 repeat_locations[participant] = [(groupidx, memberidx)]
             missing_participants = missing_participants - set([participant])
-            
     # For each set of repeats, save one repeat location each for each repeated participant, but the rest need to be overwritten (therefore we're taking a sample of len(v) - 1)
     repeat_locations = [random.sample(v, len(v) - 1) for (k,v) in repeat_locations.items() if len(v) > 1]
     # Flatten list
     repeat_locations = list(itertools.chain.from_iterable(repeat_locations))
-
-    #print("Missing participants: " + str(missing_participants))
-    #print("Repeat locations to replace: " + str(repeat_locations))
-
     # Now we insert the missing participants into a random repeat location
     random_locations_to_replace = random.sample(repeat_locations, len(missing_participants))
     for idx, missing_participant in enumerate(missing_participants):
         groupidx, memberidx = random_locations_to_replace[idx]
-        #print("Replacing val at : " + str(random_locations_to_replace[idx]) + " with " + str(missing_participant))
         child[groupidx][memberidx] = missing_participant
-    #print("Final child: " + str(child))
     return child
 
 def breed(parents):
@@ -247,9 +200,6 @@ def breed(parents):
     for i in range(NUM_CHILDREN):
         child = breed_two_parents(randomized_parents[i % len(randomized_parents)], randomized_parents[(i + 1) % len(randomized_parents)])
         children.append(child)
-        #print("Got child: " + str(child))
-        #print("Children: " + str(children))
-        #print()
     return children
 
 def mutate(population):
@@ -269,9 +219,6 @@ def mutate(population):
                 grouping[group_idx1][participant_idx1] = grouping[group_idx2][participant_idx2]
                 grouping[group_idx2][participant_idx2] = temp
 
-
-
-
 def create_new_halloffame(old_hof, sorted_population_with_fitness):
     old_hof.extend(sorted_population_with_fitness[-HALL_OF_FAME_SIZE:])
     old_hof.sort(key=lambda x: x[1])
@@ -279,9 +226,6 @@ def create_new_halloffame(old_hof, sorted_population_with_fitness):
 
 def exit_handler(sig, frame):
         print("\nEvolution complete or interrupted. \n")
-        #print("\n----- Final Hall Of Fame ----- ")
-        #print_population(hall_of_fame)
-
         # Draw final results
         fig = plt.figure(figsize=(8, 6))
         ax1 = fig.add_subplot(1,1,1)
@@ -298,17 +242,9 @@ def exit_handler(sig, frame):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, exit_handler)
-
     population = generateInitialPopulation(POPULATION_SIZE)
     print("Ranking:")
     print(ranking)
-
-
-    #test_fitness = list(map(lambda gs: (gs, fitness(gs)),[[[11, 2, 20], [1, 25, 15], [8, 19, 23], [22, 12, 16], [26, 14, 13], [18, 21, 17], [5, 3, 9], [0, 7, 10], [4, 24, 6]]]))
-    #print("TEST FITNESS")
-    #print(test_fitness)
-    #sys.exit(0)
-
     # Set up initial state for generations
     generation = 0
     best_match = ([], -sys.maxsize - 1)
@@ -349,14 +285,15 @@ if __name__ == "__main__":
             new_population = []
             new_population.extend(parents)
             new_population.extend(children)
-
             if DEBUG:
                 print("Pre-mutation: ")
                 print_population(new_population)
+
             mutate(new_population)
             if DEBUG:
                 print("Post-mutation: ")
                 print_population(new_population)
+
             population = new_population
             assert(all(map(is_valid_grouping, new_population)))
         else:
@@ -364,13 +301,11 @@ if __name__ == "__main__":
             population = generateInitialPopulation(POPULATION_SIZE);
         
         # Just a check to make sure all of the new generation are valid groups
-
-        #best_fitness_so_far = hall_of_fame[-1][1]
-        best_fitness_so_far = best_match[1]#hall_of_fame[-1][1]
+        best_fitness_so_far = best_match[1]
         print("Best fitness at generation " + str(generation) + " = " + str(best_fitness_so_far))
         xs.append(generation)
         ys.append(best_fitness_so_far)
-        
+
         # Measure time
         iter_time = time.time()
         time_per_generation = (iter_time - start_time) / (generation + 1)
@@ -379,8 +314,8 @@ if __name__ == "__main__":
 
         # Move on to next generation
         generation += 1
-    print("\nBEST MATCH")
-    print_population(best_match)
-    # Comon exit point for signals and at end of algo
-    exit_handler(None, None)
 
+    print("\nBEST MATCH")
+    print_best_match(best_match)
+
+    exit_handler(None, None)
