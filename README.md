@@ -28,4 +28,4 @@ There is some support for running multiple GA instances in parallel. Running:
 ```
 ./genetic_parallel.py
 ```
-will execute a number of `./genetic.py` instances in parallel. This has no command-line arguments - all changes need to be made in the code itself currently. The call to `run_genetic(...)` and the variable `cpus` are the main points of modification. 
+will execute a number of `./genetic.py` instances in parallel. This has no command-line arguments - all changes need to be made in the code itself currently.
