@@ -10,7 +10,7 @@
 ```
 This will display all the relevant arguments for this Python script
 
-To run with the exact arguments from the associated paper (Population Size = 10000, Number of Generation = 4000, Elitism Factor = 3, Number of non-elite individuals to select from parent population = 3, Mutation Chance = 0.5, Number of swaps per mutation = 1, Number of participants = 36, Group size = 6), run
+To run with the exact arguments from the associated paper (Population Size = 4000, Number of Generation = 30, Elitism Factor = 3, Number of non-elite individuals to select from parent population = 3, Mutation Chance = 0.5, Number of swaps per mutation = 1, Number of participants = 36, Group size = 6), run
 
 ```
 ./genetic.py -p 4000 -g 30 -el 3 -rest 3 -mchance 0.5 -mswaps 1 -n 36 -s 6
@@ -20,8 +20,8 @@ You will need a file called `rankings.csv` with preference values starting at th
 Columns:
 - years old
 - years of experience
-- specialty (1-front-end, 2-back-end, 3-design)
-- work remotely (0-no, 1-yes)
+- specialty (1.front-end, 2.back-end, 3.design)
+- work remotely (0-No, 1-Yes)
 - sociability (0..100 percent)
 
 There is some support for running multiple GA instances in parallel. Running:
