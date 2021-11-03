@@ -235,7 +235,7 @@ def exit_handler(sig, frame):
         plt.ylabel('Best Fitness Achieved', fontsize=16)
         plt.plot(xs, ys)
         os.makedirs(GRAPHDIR, exist_ok=True)
-        fig.savefig(GRAPHDIR + str(NUM_PARTICIPANTS) + 'p-' + str(NUM_GROUPS) + 'g-' + str(NUM_GENERATIONS) + 'gen-' + strftime("%Y-%m-%d--%H:%M:%S", localtime()) + '.png')
+        fig.savefig(GRAPHDIR + str(NUM_PARTICIPANTS) + 'p-' + str(NUM_GROUPS) + 'g-' + str(NUM_GENERATIONS) + 'gen-' + strftime("%Y-%m-%d--%H-%M-%S", localtime()) + '.png')
         if not GRAPHHIDE:
             plt.show()
         sys.exit(0)
